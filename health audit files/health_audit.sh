@@ -1,9 +1,21 @@
 #!/bin/bash
 
-## Define the threshold values for CPU, memory, and disk usage (in percentage)
+## Load config file
 CONFIG_FILE="./threshold.env"
 [ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
 
+## Default fallback values
+CPU_WARN=${CPU_WARN:-70}
+CPU_CRIT=${CPU_CRIT:-85}
+MEM_WARN=${MEM_WARN:-70}
+MEM_CRIT=${MEM_CRIT:-85}
+DISK_WARN=${DISK_WARN:-80}
+DISK_CRIT=${DISK_CRIT:-90}
+
+## Create logs directory
+mkdir -p logs
+LOG_FILE="./logs/monitor.log"
+JSON_LOG="./logs/monitor.json"
 
 # check warning
 command -v df >/dev/null 2>&1 || echo "Warning: df not found"
@@ -67,6 +79,15 @@ check_status() {
   fi
 }
 
+human_output() {
+  cat <<EOF
+[$timestamp] SYSTEM STATUS: $system_status
+CPU: ${cpu_usage}% ($cpu_status)
+MEMORY: ${memory_usage}% ($memory_status)
+DISK: ${disk_usage}% ($disk_status)
+EOF
+}
+
 cpu_usage=$(get_cpu)
 memory_usage=$(get_memory)
 disk_usage=$(get_disk)
@@ -75,14 +96,9 @@ cpu_status=$(check_status "$cpu_usage" "$CPU_WARN" "$CPU_CRIT")
 memory_status=$(check_status "$memory_usage" "$MEM_WARN" "$MEM_CRIT")
 disk_status=$(check_status "$disk_usage" "$DISK_WARN" "$DISK_CRIT")
 
-echo "CPU_WARN=$CPU_WARN CPU_CRIT=$CPU_CRIT"
-echo "MEM_WARN=$MEM_WARN MEM_CRIT=$MEM_CRIT"
-echo "DISK_WARN=$DISK_WARN DISK_CRIT=$DISK_CRIT"
-
 timestamp=$(date "+%Y-%m-%d %H:%M:%S")
 
-#overall system status
-
+# overall system status
 if [[ "$cpu_status" == "CRITICAL" || "$memory_status" == "CRITICAL" || "$disk_status" == "CRITICAL" ]]; then
   system_status="CRITICAL"
 elif [[ "$cpu_status" == "WARNING" || "$memory_status" == "WARNING" || "$disk_status" == "WARNING" ]]; then
@@ -91,11 +107,11 @@ else
   system_status="OK"
 fi
 
-#output
-
-cat <<EOF
+# JSON output
+json_output=$(cat <<EOF
 {
   "timestamp": "$timestamp",
+  "system_status": "$system_status",
   "cpu": {
     "usage": $cpu_usage,
     "status": "$cpu_status",
@@ -116,3 +132,31 @@ cat <<EOF
   }
 }
 EOF
+)
+
+# ==============================
+# LOG ROTATION
+# ==============================
+MAX_SIZE=1000000  # 1MB
+
+if [ -f "$LOG_FILE" ]; then
+  FILE_SIZE=$(stat -c%s "$LOG_FILE" 2>/dev/null || stat -f%z "$LOG_FILE" 2>/dev/null || echo 0)
+
+  if [ "$FILE_SIZE" -ge "$MAX_SIZE" ]; then
+    mv "$LOG_FILE" "logs/monitor_$(date +%Y%m%d%H%M%S).log"
+  fi
+fi
+
+# Save human-readable log
+echo "----------------------------------------" >> "$LOG_FILE"
+human_output >> "$LOG_FILE"
+
+# Save JSON log  
+echo "$json_output" >> "$JSON_LOG"
+
+# ==============================
+# TERMINAL OUTPUT (NEW)
+# ==============================
+human_output
+echo ""
+echo "$json_output"

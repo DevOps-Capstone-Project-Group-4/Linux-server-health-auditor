@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-04-29 15:56:04",
+  "system_status": "WARNING",
+  "cpu": {
+    "usage": 41,
+    "status": "OK",
+    "warning_threshold": 70,
+    "critical_threshold": 85
+  },
+  "memory": {
+    "usage": 83.75,
+    "status": "WARNING",
+    "warning_threshold": 70,
+    "critical_threshold": 85
+  },
+  "disk": {
+    "usage": 52,
+    "status": "OK",
+    "warning_threshold": 75,
+    "critical_threshold": 90
+  }
+}

@@ -1,9 +1,15 @@
 #!/bin/bash
+## Define script directory (portable path for group projects)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-## Define the threshold values for CPU, memory, and disk usage (in percentage)
-CONFIG_FILE="./threshold.env"
-[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+## Load threshold config safely using absolute path
+CONFIG_FILE="$SCRIPT_DIR/threshold.env"
 
+if [ -f "$CONFIG_FILE" ]; then
+  source "$CONFIG_FILE"
+else
+  echo "ERROR: threshold.env not found at $CONFIG_FILE"
+fi
 
 # check warning
 command -v df >/dev/null 2>&1 || echo "Warning: df not found"
@@ -116,3 +122,9 @@ cat <<EOF
   }
 }
 EOF
+#  Prometheus metrics
+METRICS_FILE="$SCRIPT_DIR/metrics.prom"
+
+echo "cpu_usage ${cpu_usage:-0}" > "$METRICS_FILE"
+echo "memory_usage ${memory_usage:-0}" >> "$METRICS_FILE"
+echo "disk_usage ${disk_usage:-0}" >> "$METRICS_FILE"

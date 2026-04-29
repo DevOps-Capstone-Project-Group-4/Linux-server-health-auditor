@@ -28,9 +28,9 @@ These metrics are evaluated against thresholds to determine system status:
 ### 🔄 Automation (Cron)
 
 The script runs automatically every 5 minutes:
-
 ```bash
 */5 * * * * /bin/bash health_audit.sh
+
 
 ---
 
@@ -82,7 +82,7 @@ The script runs automatically every 5 minutes:
 
 ### ▶️ How to Run
 
-### 1️⃣ Navigate to project folder
+### 1️1 Navigate to project folder
 
 ```bash
 cd Linux-server-health-auditor/health-audit-files
@@ -93,14 +93,11 @@ chmod +x health_audit.sh
 ### 3.Run manually (test)
 ./health_audit.sh
 
-###4️⃣ Enable automation (Cron - every 5 mins)
+### 4️ Enable automation (Cron - every 5 mins)
 crontab -e
 
-Add:
+###  Start Prometheus (Docker)
 
-*/5 * * * * /bin/bash $HOME/Linux-server-health-auditor/health-audit-files/health_audit.sh
-
-###5️⃣ Start Prometheus (Docker)
 docker run -d \
   --name prometheus \
   -p 9090:9090 \
@@ -109,7 +106,7 @@ docker run -d \
   prom/prometheus
 
 
-###6️⃣ Open Dashboard
+### 6️ Open Dashboard
 
 👉 http://localhost:9090
 

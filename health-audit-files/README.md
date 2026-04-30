@@ -29,7 +29,9 @@ These metrics are evaluated against thresholds to determine system status:
 
 The script runs automatically every 5 minutes:
 
-```bash
+
+bash
+
 */5 * * * * /bin/bash health_audit.sh
 
 

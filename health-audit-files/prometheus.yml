@@ -4,4 +4,9 @@ global:
 scrape_configs:
   - job_name: "health_audit"
     static_configs:
-      - targets: ["localhost:9090"]
+      # - targets: ["localhost:9101"]
+      # - targets: ['localhost:9100']
+      - targets: ["node-exporter-audit:9100"]
+    # metrics_path: '/path/to/metrics.prom'
+    # scrape_interval: 5s
+    

@@ -1,0 +1,17 @@
+[Unit]
+Description=Health Audit System Self-Check Service
+Documentation=https://github.com/DevOps-Capstone-Project-Group-4/Linux-server-health-auditor
+After=network.target
+Requires=health-audit-check.timer
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/bin/health-audit-check-runner
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=health-audit-check
+TimeoutStartSec=30
+
+[Install]
+WantedBy=multi-user.target

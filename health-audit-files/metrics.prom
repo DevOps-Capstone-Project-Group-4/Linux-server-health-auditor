@@ -1,3 +1,9 @@
-cpu_usage 0
-memory_usage 18.85
-disk_usage 1
+# HELP cpu_usage CPU usage percentage
+# TYPE cpu_usage gauge
+cpu_usage{host="rhodayo-Latitude-7320-Detachable"} 40
+# HELP memory_usage Memory usage percentage
+# TYPE memory_usage gauge
+memory_usage{host="rhodayo-Latitude-7320-Detachable"} 98.55
+# HELP disk_usage Disk usage percentage
+# TYPE disk_usage gauge
+disk_usage{host="rhodayo-Latitude-7320-Detachable"} 83

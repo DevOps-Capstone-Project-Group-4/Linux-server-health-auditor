@@ -88,25 +88,55 @@ chmod +x health_audit.sh
 #### 4️ Enable automation (Cron - every 5 mins)
 crontab -e
 
-####  Start Prometheus (Docker)
+####  Start Prometheus + node-exporter (Linux-safe Docker setup)
 
+From the project root (`Linux-server-health-auditor`), run:
+
+```bash
+# Keep metrics file fresh
+bash health-audit-files/health_audit.sh >/dev/null
+
+# Clean up old demo containers if they exist
+docker rm -f prometheus node-exporter-audit 2>/dev/null || true
+
+# Create a dedicated network for container-to-container DNS
+docker network create health-audit-net 2>/dev/null || true
+
+# Expose metrics.prom via node_exporter textfile collector
+docker run -d \
+  --name node-exporter-audit \
+  --network health-audit-net \
+  -p 9101:9100 \
+  -v "$(pwd)/health-audit-files:/textfile:ro" \
+  prom/node-exporter \
+  --collector.textfile.directory=/textfile
+
+# Start Prometheus with this repo's config
 docker run -d \
   --name prometheus \
-  -p 9090:9090 \
-  -v $HOME/metrics:/metrics \
-  -v $PWD/prometheus.yml:/etc/prometheus/prometheus.yml \
+  --network health-audit-net \
+  -p 9091:9090 \
+  -v "$(pwd)/health-audit-files/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
   prom/prometheus
+```
 
 
 #### 6️ Open Dashboard
 
-👉 http://localhost:9090
+👉 http://localhost:9091
 
 Search metrics:
 
 cpu_usage
 memory_usage
 disk_usage
+
+Quick checks:
+
+```bash
+curl -s http://localhost:9101/metrics | grep -E 'cpu_usage|memory_usage|disk_usage'
+curl -s 'http://localhost:9091/api/v1/query?query=up'
+```
 
 
 #### Restart Guide
@@ -115,5 +145,6 @@ If system restarts:
 
 cd ~/Linux-server-health-auditor/health-audit-files
 ./health_audit.sh
+docker start node-exporter-audit
 docker start prometheus
 

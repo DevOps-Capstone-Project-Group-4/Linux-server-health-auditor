@@ -1,18 +1,44 @@
 #!/bin/bash
+set -o pipefail  # Exit on pipe failures
+
 ## Define script directory (portable path for group projects)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 ## Load threshold config safely using absolute path
 CONFIG_FILE="$SCRIPT_DIR/threshold.env"
 
-if [ -f "$CONFIG_FILE" ]; then
-  source "$CONFIG_FILE"
-else
-  echo "ERROR: threshold.env not found at $CONFIG_FILE"
+if [ ! -f "$CONFIG_FILE" ]; then
+  echo "ERROR: threshold.env not found at $CONFIG_FILE" >&2
+  exit 1
 fi
 
+source "$CONFIG_FILE" || { echo "ERROR: Failed to source $CONFIG_FILE" >&2; exit 1; }
+
+# Validate threshold values (must be 0-100 and warn < crit)
+validate_thresholds() {
+  local warn=$1 crit=$2 name=$3
+  if ! [[ "$warn" =~ ^[0-9]+$ ]] || ! [[ "$crit" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: Invalid $name threshold values (must be integers)" >&2
+    return 1
+  fi
+  if [ "$warn" -ge "$crit" ]; then
+    echo "ERROR: $name warning ($warn) must be less than critical ($crit)" >&2
+    return 1
+  fi
+  if [ "$warn" -lt 0 ] || [ "$warn" -gt 100 ] || [ "$crit" -lt 0 ] || [ "$crit" -gt 100 ]; then
+    echo "ERROR: $name thresholds must be between 0-100" >&2
+    return 1
+  fi
+  return 0
+}
+
+# Validate all thresholds at startup
+validate_thresholds "$CPU_WARN" "$CPU_CRIT" "CPU" || exit 1
+validate_thresholds "$MEM_WARN" "$MEM_CRIT" "MEMORY" || exit 1
+validate_thresholds "$DISK_WARN" "$DISK_CRIT" "DISK" || exit 1
+
 # check warning
-command -v df >/dev/null 2>&1 || echo "Warning: df not found"
+command -v df >/dev/null 2>&1 || { echo "Warning: df not found" >&2; exit 1; }
 
 # Monitoring usage
 
@@ -81,11 +107,7 @@ cpu_status=$(check_status "$cpu_usage" "$CPU_WARN" "$CPU_CRIT")
 memory_status=$(check_status "$memory_usage" "$MEM_WARN" "$MEM_CRIT")
 disk_status=$(check_status "$disk_usage" "$DISK_WARN" "$DISK_CRIT")
 
-echo "CPU_WARN=$CPU_WARN CPU_CRIT=$CPU_CRIT"
-echo "MEM_WARN=$MEM_WARN MEM_CRIT=$MEM_CRIT"
-echo "DISK_WARN=$DISK_WARN DISK_CRIT=$DISK_CRIT"
-
-timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+timestamp=$(date -u "+%Y-%m-%dT%H:%M:%SZ")  # ISO 8601 UTC format
 
 #overall system status
 
@@ -97,11 +119,11 @@ else
   system_status="OK"
 fi
 
-#output
-
+echo "{"
 cat <<EOF
-{
+  "host": "$(hostname)",
   "timestamp": "$timestamp",
+  "system_status": "$system_status",
   "cpu": {
     "usage": $cpu_usage,
     "status": "$cpu_status",
@@ -122,9 +144,17 @@ cat <<EOF
   }
 }
 EOF
-#  Prometheus metrics
-METRICS_FILE="$SCRIPT_DIR/metrics.prom"
 
-echo "cpu_usage ${cpu_usage:-0}" > "$METRICS_FILE"
-echo "memory_usage ${memory_usage:-0}" >> "$METRICS_FILE"
-echo "disk_usage ${disk_usage:-0}" >> "$METRICS_FILE"
+# Write Prometheus metrics to the file Prometheus or node_exporter reads
+METRICS_FILE="$SCRIPT_DIR/metrics.prom"
+{
+  echo "# HELP cpu_usage CPU usage percentage"
+  echo "# TYPE cpu_usage gauge"
+  echo "cpu_usage{host=\"$(hostname)\"} ${cpu_usage:-0}"
+  echo "# HELP memory_usage Memory usage percentage"
+  echo "# TYPE memory_usage gauge"
+  echo "memory_usage{host=\"$(hostname)\"} ${memory_usage:-0}"
+  echo "# HELP disk_usage Disk usage percentage"
+  echo "# TYPE disk_usage gauge"
+  echo "disk_usage{host=\"$(hostname)\"} ${disk_usage:-0}"
+} > "$METRICS_FILE"

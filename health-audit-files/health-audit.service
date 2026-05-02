@@ -1,0 +1,18 @@
+[Unit]
+Description=Linux Server Health Audit Service
+Documentation=https://github.com/DevOps-Capstone-Project-Group-4/Linux-server-health-auditor
+After=network.target
+Wants=health-audit.timer
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/bin/health-audit-runner
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=health-audit
+# Timeout after 2 minutes (audit should complete in <30s normally)
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

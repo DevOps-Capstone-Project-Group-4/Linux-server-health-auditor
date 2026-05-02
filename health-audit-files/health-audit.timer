@@ -1,0 +1,20 @@
+[Unit]
+Description=Run Linux Server Health Audit every 5 minutes
+Documentation=https://github.com/DevOps-Capstone-Project-Group-4/Linux-server-health-auditor
+Requires=health-audit.service
+
+[Timer]
+# Run immediately on boot
+OnBootSec=5s
+
+# Run every 5 minutes
+OnUnitActiveSec=5m
+
+# Randomize start time by 0-30 seconds to spread load on multi-server environments;spreading out task start times across many systems.
+RandomizedDelaySec=30
+
+# Keep service alive if system is suspended
+Persistent=yes
+
+[Install]
+WantedBy=timers.target

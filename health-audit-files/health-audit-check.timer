@@ -1,0 +1,20 @@
+[Unit]
+Description=Run Health Audit System Self-Check every 10 minutes
+Documentation=https://github.com/DevOps-Capstone-Project-Group-4/Linux-server-health-auditor
+Requires=health-audit-check.service
+
+[Timer]
+# Run immediately on boot
+OnBootSec=10s
+
+# Run every 10 minutes
+OnUnitActiveSec=10m
+
+# Randomize to avoid thundering herd
+RandomizedDelaySec=1m
+
+# Keep service alive if system is suspended
+Persistent=yes
+
+[Install]
+WantedBy=timers.target

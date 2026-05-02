@@ -26,6 +26,8 @@ Tasks include:
 
 Setting up scheduled execution (e.g., cron jobs) Testing automated runs (Optional) Exposing metrics for integration with Prometheus Ensuring reliability in repeated executions
 
+Important: use `health-audit-files/install-systemd.sh` to install the systemd units for your local checkout. Do not copy the unit files by hand, because the installer creates portable launcher scripts that point to the correct repo path on each machine.
+
 📝 Documentation & AWS Memo (3 members)
 
 Responsible for documentation and cloud-related explanations.

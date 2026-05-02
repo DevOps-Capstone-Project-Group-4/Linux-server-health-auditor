@@ -1,0 +1,27 @@
+name: docker-build-and-verify
+
+# Builds the container image and runs the verification script on every push
+# and pull request. Provides a green/red badge proving containerization works.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  container-verify:
+    name: Build and verify container
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Make scripts executable
+        run: |
+          chmod +x check.sh
+          chmod +x health-audit-files/health_audit.sh
+          chmod +x docker/verify-container.sh
+
+      - name: Run container verification
+        run: ./docker/verify-container.sh

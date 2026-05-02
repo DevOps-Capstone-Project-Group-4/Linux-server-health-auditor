@@ -1,0 +1,46 @@
+# docker-compose.yml — one-command deployment of the health auditor
+#
+# Usage (from repo root):
+#   docker compose -f docker/docker-compose.yml up -d           # continuous mode
+#   docker compose -f docker/docker-compose.yml run --rm audit  # single audit
+#   docker compose -f docker/docker-compose.yml logs -f         # tail output
+#
+# The container runs health_audit.sh in a loop (every 5 minutes by default),
+# writing JSON output to stdout and Prometheus metrics to a mounted volume.
+
+services:
+  audit:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: health-auditor:latest
+    container_name: health-auditor
+    restart: unless-stopped
+    pid: host                   # see host processes
+    volumes:
+      - audit-logs:/opt/health-auditor/logs
+      - audit-metrics:/opt/health-auditor/health-audit-files
+    environment:
+      - CPU_WARN=70
+      - CPU_CRIT=85
+      - MEM_WARN=70
+      - MEM_CRIT=85
+      - DISK_WARN=75
+      - DISK_CRIT=90
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+    # Run the audit every 5 minutes
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        while true; do
+          /opt/health-auditor/health_audit.sh
+          sleep 300
+        done
+
+volumes:
+  audit-logs:
+  audit-metrics:

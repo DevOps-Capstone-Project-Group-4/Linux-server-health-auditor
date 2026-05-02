@@ -1,0 +1,14 @@
+# Don't ship docs, screenshots, or other non-essential files inside the image
+docs/
+*.md
+*.pdf
+*.png
+*.jpg
+*.svg
+.git/
+.github/
+.gitignore
+*.zip
+__pycache__/
+*.pyc
+logs/

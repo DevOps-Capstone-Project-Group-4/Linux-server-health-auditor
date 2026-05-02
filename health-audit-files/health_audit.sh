@@ -99,9 +99,41 @@ check_status() {
   fi
 }
 
+get_processes() {
+  ps -e 2>/dev/null | wc -l
+}
+
+get_network() {
+  timeout 2 ping -c 1 8.8.8.8 >/dev/null 2>&1
+
+  if [ $? -eq 0 ]; then
+    echo "UP"
+  else
+    echo "DOWN"
+  fi
+}
+
+check_port() {
+  port=$1
+
+  if command -v ss >/dev/null 2>&1; then
+    ss -tuln | grep -q ":$port " && echo "OPEN" || echo "CLOSED"
+  else
+    echo "UNKNOWN"
+  fi
+}
+
 cpu_usage=$(get_cpu)
 memory_usage=$(get_memory)
 disk_usage=$(get_disk)
+
+process_count=$(get_processes)
+network_status=$(get_network)
+
+port_22=$(check_port 22)
+port_80=$(check_port 80)
+port_443=$(check_port 443)
+port_9090=$(check_port 9090)
 
 cpu_status=$(check_status "$cpu_usage" "$CPU_WARN" "$CPU_CRIT")
 memory_status=$(check_status "$memory_usage" "$MEM_WARN" "$MEM_CRIT")
@@ -136,13 +168,28 @@ cat <<EOF
     "warning_threshold": $MEM_WARN,
     "critical_threshold": $MEM_CRIT
   },
+
   "disk": {
     "usage": $disk_usage,
     "status": "$disk_status",
     "warning_threshold": $DISK_WARN,
     "critical_threshold": $DISK_CRIT
+  },
+
+  "processes": {
+    "count": $process_count
+  },
+  "network": {
+    "status": "$network_status"
+  },
+
+  "ports": {
+    "22": "$port_22",
+    "80": "$port_80",
+    "443": "$port_443",
+    "9090": "$port_9090"
   }
-}
+}  
 EOF
 
 # Write Prometheus metrics to the file Prometheus or node_exporter reads

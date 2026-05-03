@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Linux Server Health Auditor is a Bash script that monitors the health of a Linux server by checking three critical system metrics — CPU usage, memory usage and disk usage. It reads data directly from the Linux kernel files `/proc/stat` and `/proc/meminfo` and uses the `df` command for disk. Results are output in JSON format with timestamps and categorised into three status levels: **OK, WARNING, and CRITICAL.**
+The Linux Server Health Auditor is a Bash script that monitors the health of a Linux server by checking six critical system metrics — CPU usage, memory usage, disk usage, network, processes and ports. It reads data directly from the Linux kernel files `/proc/stat` and `/proc/meminfo` and uses the `df` command for disk. Results are output in JSON format with timestamps and categorised into three status levels: **OK, WARNING, and CRITICAL.**
 
 This memo explains how this tool would be deployed and integrated with AWS services when running on EC2 instances in a cloud environment.
 
@@ -12,29 +12,32 @@ This memo explains how this tool would be deployed and integrated with AWS servi
 
 On AWS, the health audit script runs on **EC2 instances** hosted inside a **private subnet within a VPC (Virtual Private Cloud).** A private subnet means the instances are not directly exposed to the internet, which improves security.
 
-Multiple EC2 instances are grouped inside an **Auto Scaling Group.** This means AWS can automatically add or remove instances based on demand. Every instance runs the same `audit.sh` script on a cron schedule and has the **CloudWatch Agent** installed to ship metrics to AWS monitoring services.
+Multiple EC2 instances are grouped inside an **Auto Scaling Group.**. This means AWS can automatically add or remove instances based on demand. Every instance runs the same `health_audit.sh` script on a cron schedule and has the **CloudWatch Agent** installed to ship metrics to AWS monitoring services.
 
 For on-demand audit runs without needing SSH access, **AWS Systems Manager (SSM)** is used. SSM can send a Run Command to any instance in the group to trigger the audit script immediately.
 
-The script reads thresholds from a `threshold.env` configuration file. In an AWS environment this config file would be stored in **AWS Systems Manager Parameter Store**; a secure central location for configuration values accessible by all instances.
+The script reads thresholds from a `threshold.env` configuration file. In an AWS environment this config file would be stored in **AWS Systems Manager Parameter Store** — a secure central location for configuration values accessible by all instances.
 
 ---
 
 ## 2. Monitoring Flow
 
-Once the script runs on an EC2 instance it produces a JSON report. This is what happens to that report on AWS:
+Once the script runs on an EC2 instance it produces a JSON report covering CPU, memory, disk, network, processes and port checks. 
+This is what happens to that report on AWS:
 
 **Step 1. CloudWatch Logs**
 The JSON audit report is shipped to **CloudWatch Logs** which stores all audit reports centrally. Every instance sends its report here so you have one place to view results from all servers.
 
 **Step 2. CloudWatch Metrics**
-The CPU, memory and disk numbers from the script are published to **CloudWatch Metrics.** This allows AWS to track these values over time and display them as graphs.
+The CPU, memory, disk, network and process metrics from the script are published to **CloudWatch Metrics.** This allows AWS to track these values over time and display them as graphs.
 
 **Step 3. CloudWatch Alarms**
 CloudWatch Alarms monitor the metric values against the thresholds defined in the script. This maps directly to our two threshold levels:
 
 - When a value crosses the **WARNING threshold** → Alarm enters warning state
 - When a value crosses the **CRITICAL threshold** → Alarm enters alarm state and triggers an alert
+
+Locally, the script also integrates with **Prometheus** by writing metrics to a `metrics.prom` file which Prometheus scrapes and displays on a dashboard at `http://localhost:9090`. On AWS, **CloudWatch** replaces Prometheus as the native monitoring solution.
 
 ---
 
@@ -62,13 +65,16 @@ For deeper disaster recovery, **AWS Backup** takes automatic **EBS (Elastic Bloc
 
 ---
 
-## 5. How Our 3 Checks Map to AWS Services
+## 5. How Our 6 Checks Map to AWS Services
 
 | Script Check | How It Works Locally | AWS Equivalent |
 |---|---|---|
 | CPU | Reads `/proc/stat` | CloudWatch Agent + CloudWatch Metrics |
 | Memory | Reads `/proc/meminfo` | CloudWatch Agent custom metric |
 | Disk | Reads `df /` command | CloudWatch Agent custom metric |
+| Network | Pings 8.8.8.8 to check connectivity | CloudWatch Agent network metrics |
+| Processes | Counts running processes via `ps` | AWS Systems Manager Inventory |
+| Ports | Checks ports 22, 80, 443, 9090 | AWS Security Groups + AWS Inspector |
 | WARNING threshold | Script status level | CloudWatch Alarm warning state |
 | CRITICAL threshold | Script status level | CloudWatch Alarm + SNS alert |
 | JSON log output | Saved to local file | Shipped to CloudWatch Logs |
@@ -79,7 +85,7 @@ For deeper disaster recovery, **AWS Backup** takes automatic **EBS (Elastic Bloc
 
 ## 6. Conclusion
 
-Running the Linux Health Auditor on AWS transforms it from a single server tool into an enterprise-grade monitoring system. The core logic of the script remains the same — check CPU, memory and disk against thresholds and report status. But AWS adds:
+Running the Linux Health Auditor on AWS transforms it from a single server tool into an enterprise-grade monitoring system. The core logic of the script remains the same — check CPU, memory, disk, network, processes and ports against thresholds and report status. But AWS adds:
 
 - **Scale**: monitor dozens of EC2 instances from one dashboard
 - **Automation**: alerts fire automatically without anyone checking logs
@@ -92,13 +98,3 @@ The same script, the same checks, the same thresholds, just supercharged by AWS 
 
 ## Reference
 See AWS Architecture Diagram in the project repository.
-
----
-
-*Prepared by: Rosemary Edem*
-
-*Team: Documentation & AWS Memo*
-
-*Project: Linux Server Health Auditor*
-
-*DevOps SCA Learning Group*
